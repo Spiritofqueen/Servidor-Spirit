@@ -1,134 +1,77 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
+import tkinter as tk
+from tkinter import messagebox
+from tkcalendar import Calendar
 
-app = Flask(__name__)
-app.secret_key = 'clave_super_secreta'
+# Inicializamos la lista de reservas
+reservas = []
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
+# Función para agregar una reserva
+def agregar_reserva():
+    nombre = entrada_nombre.get()
+    fecha = calendario.get_date()
+    hora = entrada_hora.get()
 
-# Clase Usuario para autenticación
-class User(UserMixin):
-    def __init__(self, id, username):
-        self.id = id
-        self.username = username
+    if not nombre or not hora:
+        messagebox.showwarning("Advertencia", "Por favor, complete todos los campos.")
+        return
 
-@login_manager.user_loader
-def load_user(user_id):
-    conn = sqlite3.connect('reservas.db')
-    c = conn.cursor()
-    c.execute('SELECT id, username FROM usuarios WHERE id = ?', (user_id,))
-    user = c.fetchone()
-    conn.close()
-    if user:
-        return User(user[0], user[1])
-    return None
+    # Creamos un diccionario para la reserva
+    reserva = {
+        "nombre": nombre,
+        "fecha": fecha,
+        "hora": hora
+    }
 
-# Inicialización de la base de datos con tablas de usuarios y reservas
-def init_db():
-    conn = sqlite3.connect('reservas.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            password TEXT NOT NULL
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS reservas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha TEXT NOT NULL,
-            user_id INTEGER,
-            FOREIGN KEY(user_id) REFERENCES usuarios(id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    # Agregamos la reserva a la lista
+    reservas.append(reserva)
 
-# Ruta principal con autenticación
-@app.route('/')
-@login_required
-def index():
-    return render_template('index.html', username=current_user.username)
+    # Mostramos un mensaje de confirmación y limpiamos los campos
+    messagebox.showinfo("Reserva confirmada", f"Reserva para {nombre} el {fecha} a las {hora}")
+    entrada_nombre.delete(0, tk.END)
+    entrada_hora.delete(0, tk.END)
 
-# Ruta para el login
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        conn = sqlite3.connect('reservas.db')
-        c = conn.cursor()
-        c.execute('SELECT id, password FROM usuarios WHERE username = ?', (username,))
-        user = c.fetchone()
-        conn.close()
+# Función para ver todas las reservas
+def ver_reservas():
+    if not reservas:
+        messagebox.showinfo("Reservas", "No hay reservas registradas.")
+        return
 
-        if user and check_password_hash(user[1], password):
-            user_obj = User(user[0], username)
-            login_user(user_obj)
-            return redirect(url_for('index'))
-        else:
-            flash('Usuario o contraseña incorrectos')
-    
-    return render_template('login.html')
+    # Crear una nueva ventana para mostrar las reservas
+    ventana_reservas = tk.Toplevel(root)
+    ventana_reservas.title("Reservas")
 
-# Ruta para el registro
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = generate_password_hash(request.form['password'])
-        
-        conn = sqlite3.connect('reservas.db')
-        c = conn.cursor()
-        c.execute('INSERT INTO usuarios (username, password) VALUES (?, ?)', (username, password))
-        conn.commit()
-        conn.close()
+    # Mostrar cada reserva en la ventana
+    for reserva in reservas:
+        label_reserva = tk.Label(ventana_reservas, text=f"Nombre: {reserva['nombre']}, Fecha: {reserva['fecha']}, Hora: {reserva['hora']}")
+        label_reserva.pack()
 
-        flash('Usuario registrado exitosamente. Ahora puedes iniciar sesión.')
-        return redirect(url_for('login'))
-    
-    return render_template('register.html')
+# Configuración de la ventana principal
+root = tk.Tk()
+root.title("Sistema de Reservación")
 
-# Ruta para cerrar sesión
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
+# Etiquetas y entradas de texto
+label_nombre = tk.Label(root, text="Nombre:")
+label_nombre.pack()
+entrada_nombre = tk.Entry(root)
+entrada_nombre.pack()
 
-# Ruta para obtener las reservas (ahora asociadas a usuarios)
-@app.route('/reservas', methods=['GET'])
-@login_required
-def obtener_reservas():
-    conn = sqlite3.connect('reservas.db')
-    c = conn.cursor()
-    c.execute('SELECT fecha FROM reservas WHERE user_id = ?', (current_user.id,))
-    reservas = c.fetchall()
-    conn.close()
+label_fecha = tk.Label(root, text="Seleccione la fecha:")
+label_fecha.pack()
+calendario = Calendar(root, selectmode="day")
+calendario.pack()
 
-    eventos = [{"title": "Reservado", "start": reserva[0]} for reserva in reservas]
-    return jsonify(eventos)
+label_hora = tk.Label(root, text="Hora (HH:MM):")
+label_hora.pack()
+entrada_hora = tk.Entry(root)
+entrada_hora.pack()
 
-# Ruta para añadir una nueva reserva
-@app.route('/reservar', methods=['POST'])
-@login_required
-def reservar():
-    fecha = request.json['fecha']
-    
-    conn = sqlite3.connect('reservas.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO reservas (fecha, user_id) VALUES (?, ?)', (fecha, current_user.id))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"message": "Reserva creada", "fecha": fecha})
+# Botón para agregar la reserva
+boton_agregar = tk.Button(root, text="Agregar Reserva", command=agregar_reserva)
+boton_agregar.pack()
 
-if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+# Botón para ver las reservas
+boton_ver = tk.Button(root, text="Ver Reservas", command=ver_reservas)
+boton_ver.pack()
+
+# Iniciar el bucle principal de la ventana
+root.mainloop()
