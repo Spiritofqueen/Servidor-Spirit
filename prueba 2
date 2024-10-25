@@ -1,0 +1,53 @@
+from flask import Flask, render_template, request, jsonify
+import sqlite3
+
+app = Flask(__name__)
+
+# Función para inicializar la base de datos
+def init_db():
+    conn = sqlite3.connect('reservas.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS reservas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Ruta principal
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Ruta para obtener las reservas
+@app.route('/reservas', methods=['GET'])
+def obtener_reservas():
+    conn = sqlite3.connect('reservas.db')
+    c = conn.cursor()
+    c.execute('SELECT fecha FROM reservas')
+    reservas = c.fetchall()
+    conn.close()
+
+    # Convertir a formato compatible con FullCalendar
+    eventos = [{"title": "Reservado", "start": reserva[0]} for reserva in reservas]
+    return jsonify(eventos)
+
+# Ruta para añadir una nueva reserva
+@app.route('/reservar', methods=['POST'])
+def reservar():
+    fecha = request.json['fecha']
+    
+    # Guardar en la base de datos
+    conn = sqlite3.connect('reservas.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO reservas (fecha) VALUES (?)', (fecha,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"message": "Reserva creada", "fecha": fecha})
+
+if __name__ == '__main__':
+    init_db()  # Inicializamos la base de datos la primera vez
+    app.run(debug=True)
