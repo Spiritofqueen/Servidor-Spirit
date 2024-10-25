@@ -1,0 +1,77 @@
+import tkinter as tk
+from tkinter import messagebox
+from tkcalendar import Calendar
+
+# Inicializamos la lista de reservas
+reservas = []
+
+# Función para agregar una reserva
+def agregar_reserva():
+    nombre = entrada_nombre.get()
+    fecha = calendario.get_date()
+    hora = entrada_hora.get()
+
+    if not nombre or not hora:
+        messagebox.showwarning("Advertencia", "Por favor, complete todos los campos.")
+        return
+
+    # Creamos un diccionario para la reserva
+    reserva = {
+        "nombre": nombre,
+        "fecha": fecha,
+        "hora": hora
+    }
+
+    # Agregamos la reserva a la lista
+    reservas.append(reserva)
+
+    # Mostramos un mensaje de confirmación y limpiamos los campos
+    messagebox.showinfo("Reserva confirmada", f"Reserva para {nombre} el {fecha} a las {hora}")
+    entrada_nombre.delete(0, tk.END)
+    entrada_hora.delete(0, tk.END)
+
+# Función para ver todas las reservas
+def ver_reservas():
+    if not reservas:
+        messagebox.showinfo("Reservas", "No hay reservas registradas.")
+        return
+
+    # Crear una nueva ventana para mostrar las reservas
+    ventana_reservas = tk.Toplevel(root)
+    ventana_reservas.title("Reservas")
+
+    # Mostrar cada reserva en la ventana
+    for reserva in reservas:
+        label_reserva = tk.Label(ventana_reservas, text=f"Nombre: {reserva['nombre']}, Fecha: {reserva['fecha']}, Hora: {reserva['hora']}")
+        label_reserva.pack()
+
+# Configuración de la ventana principal
+root = tk.Tk()
+root.title("Sistema de Reservación")
+
+# Etiquetas y entradas de texto
+label_nombre = tk.Label(root, text="Nombre:")
+label_nombre.pack()
+entrada_nombre = tk.Entry(root)
+entrada_nombre.pack()
+
+label_fecha = tk.Label(root, text="Seleccione la fecha:")
+label_fecha.pack()
+calendario = Calendar(root, selectmode="day")
+calendario.pack()
+
+label_hora = tk.Label(root, text="Hora (HH:MM):")
+label_hora.pack()
+entrada_hora = tk.Entry(root)
+entrada_hora.pack()
+
+# Botón para agregar la reserva
+boton_agregar = tk.Button(root, text="Agregar Reserva", command=agregar_reserva)
+boton_agregar.pack()
+
+# Botón para ver las reservas
+boton_ver = tk.Button(root, text="Ver Reservas", command=ver_reservas)
+boton_ver.pack()
+
+# Iniciar el bucle principal de la ventana
+root.mainloop()
